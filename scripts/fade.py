@@ -4,15 +4,14 @@
 
 import time, subprocess
 
-
 COLOR = {
-        "RED"       :   "0 0 {0}\n",
-        "BLUE"      :   "{0} 0 0\n",
+        "RED"       :   "{0} 0 0\n",
+        "BLUE"      :   "0 0 {0}\n",
         "GREEN"     :   "0 {0} 0\n",
-        "CYAN"      :   "{0} {0} 0\n",
+        "CYAN"      :   "0 {0} {0}\n",
         "MAGENTA"   :   "{0} 0 {0}\n",
         "WHITE"     :   "{0} {0} {0}\n",
-        "YELLOW"    :   "0 {0} {0}\n"
+        "YELLOW"    :   "{0} {0} 0\n"
         }
 
 led = subprocess.Popen("sudo ../bin/catlight cat", 
