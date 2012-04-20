@@ -12,8 +12,10 @@
 # This Makefile has been tested on Mac OS X, Linux and Windows.
 
 # Use the following 3 lines on Unix (uncomment the framework on Mac OS X):
-USBFLAGS = `libusb-config --cflags`
-USBLIBS =  `libusb-config --libs`
+USBFLAGS   = `libusb-config --cflags`
+USBLIBS    = `libusb-config --libs`
+GLIBFLAGS  = `pkg-config --cflags glib-2.0`
+GLIBLIBS   = `pkg-config --libs   glib-2.0`
 EXE_SUFFIX =
 
 # Use the following 3 lines on Windows and comment out the 3 above. You may
@@ -26,13 +28,13 @@ NAME = catlight
 SRC=src
 BIN=bin
 
-OBJECTS = $(SRC)/opendevice.o $(SRC)/$(NAME).o
+OBJECTS = $(SRC)/$(NAME).o
 
 CC		= gcc
-CFLAGS	= $(CPPFLAGS) $(USBFLAGS) -Os -Wall -Wextra
-LIBS	= $(USBLIBS)
+CFLAGS	= $(CPPFLAGS) $(USBFLAGS) $(GLIBFLAGS) -Os -Wall -Wextra
+LIBS	= $(USBLIBS) $(GLIBLIBS)
 
-PROGRAM = $(NAME)$(EXE_SUFFIX)
+PROGRAM = $(BIN)/$(NAME)$(EXE_SUFFIX)
 
 
 all: $(PROGRAM)
@@ -41,7 +43,7 @@ all: $(PROGRAM)
 	$(CC) $(CFLAGS) -c $<
 
 $(PROGRAM): $(OBJECTS)
-	$(CC) -o $(BIN)/$(PROGRAM) *.o $(LIBS)
+	$(CC) -o $(PROGRAM) *.o $(LIBS)
 
 strip: $(PROGRAM)
 	strip -s $(PROGRAM)

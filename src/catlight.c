@@ -1,26 +1,22 @@
-/* Name: set-led.c
- * Project: hid-custom-rq example
- * Author: Christian Starkjohann, modified by Herrchen
- * Creation Date: 2008-04-10
- * Tabsize: 4
- * Copyright: (c) 2008 by OBJECTIVE DEVELOPMENT Software GmbH
- * License: GNU GPL v2 (see License.txt), GNU GPL v3 or proprietary (CommercialLicense.txt)
- * This Revision: $Id: set-led.c 692 2008-11-07 15:07:40Z cs $
+/* Name: catlight.c
+ * Author: C. Pahl, based on code by Christian Starkjohann
+ * Creation Date: 2012-4-20
+ * License: GNU GPL v3 
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <glib.h>
 #include <usb.h>
-#include "opendevice.h" /* common code moved to separate module */
+
+#define MAX_BUF_LEN 256
 
 /* Taken from original firmware/request.h */
 #define CUSTOM_RQ_SET_RED    3
 #define CUSTOM_RQ_SET_GREEN  4
 #define CUSTOM_RQ_SET_BLUE   5
-
-#define CLAMP(x, low, high)  (((x) > (high)) ? (high) : (((x) < (low)) ? (low) : (x)))
 
 /* Taken from original firmware/usbconfig.h */
 #define USB_CFG_VENDOR_ID   0xc0, 0x16
@@ -28,6 +24,11 @@
 #define USB_CFG_VENDOR_NAME 'd', 'a', 'v', 'e', '.', 'h'
 #define USB_CFG_DEVICE_NAME 'L', 'E', 'D', 'C', 't', 'l', 'H', 'I', 'D'
 
+/**
+ * @brief Print usage
+ *
+ * @param name Name of the program (argv[0])
+ */
 static void usage(char *name)
 {
     fprintf(stderr, "usage:\n");
@@ -39,6 +40,117 @@ static void usage(char *name)
 
 //////////////////////////////////
 
+/**
+ * @brief Match a string against a shell style pattern (hello?world*)
+ *
+ * @param text the text to check
+ * @param pattern the pattern, NULL is a valid pattern, always returning true
+ *
+ * @return true if both match, false if not or if text is NULL
+ */
+static bool shell_style_match(const char * text, const char * pattern)
+{
+    if(pattern == NULL)
+        return true;
+
+    return text ? g_pattern_match_simple(text,pattern) : 0;
+}
+
+///////////////////////////////////
+
+/**
+ * @brief Gets a string by ID from the device and tests it agains a shell pattern
+ *
+ * @param handle the opened device
+ * @param ID the ID of the string to query
+ * @param buf a buf to write the result into
+ * @param buflen the max. length of buf
+ * @param query_pattern the shell pattern to test
+ *
+ * @return false on no match, true on match
+ */
+static bool query_and_match(usb_dev_handle * handle, int ID, char * buf, size_t buflen, const char * query_pattern)
+{
+    memset(buf,0,buflen);
+    size_t len  = usb_get_string_simple(handle, ID, buf, buflen);
+    if(len > 0)
+        return shell_style_match(buf,query_pattern);
+    else
+        return false;
+}
+
+///////////////////////////////////
+
+/**
+ * @brief Open the catlight device
+ *
+ * @param device  the opened devive, passed as reference
+ * @param vendorID the ID of the vendor
+ * @param vendorNamePattern pattern to check vendor against
+ * @param productID the ID of the product
+ * @param productNamePattern pattern to check product against
+ * @param serialNamePattern pattern to check serial against
+ *
+ * @return 0 on success, other values on failure
+ */
+static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePattern, int productID, char *productNamePattern, char *serialNamePattern)
+{
+    struct usb_bus * bus = NULL;
+    struct usb_device * dev = NULL;
+    usb_dev_handle * handle = NULL;
+    int errorCode = -1;
+    char vendor[MAX_BUF_LEN], product[MAX_BUF_LEN], serial[MAX_BUF_LEN];
+
+    if(device == NULL)
+        return -1;
+
+    usb_find_busses();
+    usb_find_devices();
+
+    for(bus = usb_get_busses(); bus && handle == NULL; bus = bus->next)
+    {
+        for(dev = bus->devices; dev && handle == NULL; dev = dev->next)
+        {
+            if((vendorID  == 0 || dev->descriptor.idVendor == vendorID)
+                    && (productID == 0 || dev->descriptor.idProduct == productID))
+            {
+                handle = usb_open(dev);
+                if(handle != NULL)
+                {
+                    if(!query_and_match(handle,dev->descriptor.iManufacturer,vendor,sizeof(vendor),vendorNamePattern))
+                        goto continue_search;
+
+                    if(!query_and_match(handle,dev->descriptor.iProduct,product,sizeof(product),productNamePattern))
+                        goto continue_search;
+
+                    if(!query_and_match(handle,dev->descriptor.iSerialNumber,serial,sizeof(serial),serialNamePattern))
+                        goto continue_search;
+
+                    *device = handle;
+                    errorCode = 0;
+                    break;
+
+continue_search:
+                    usb_close(handle);
+                    handle = NULL;
+                }
+            }
+        }
+    }
+
+    return errorCode;
+}
+
+//////////////////////////////////
+
+/**
+ * @brief Set the actual color (0-255 x 3) for an actual device
+ *
+ * @param handle a opened handle, no error checking is done!
+ * @param r red color part
+ * @param g green color part
+ * @param b blue color part
+ */
 static void set_rgb(usb_dev_handle * handle, int r, int g, int b)
 {
     char buffer[4] =  {0,0,0,0};
@@ -50,6 +162,13 @@ static void set_rgb(usb_dev_handle * handle, int r, int g, int b)
 
 //////////////////////////////////
 
+/**
+ * @brief Tries to convert a string containing a number to a number in the range [0-255]
+ *
+ * @param arg a valid string
+ *
+ * @return the resulting number, or 0 on failure
+ */
 static int string_to_col(const char * arg)
 {
     return CLAMP(strtol(arg,NULL,10),0,255);
@@ -57,18 +176,35 @@ static int string_to_col(const char * arg)
 
 //////////////////////////////////
 
+/**
+ * @brief Takes an array of 3 strings and set the color accordingly
+ *
+ * @param handle the open device
+ * @param arr a string array
+ */
 static void set_rgb_from_arr(usb_dev_handle * handle, const char ** arr)
 {
     int r,g,b;
-    r = string_to_col(arr[0]); 
-    g = string_to_col(arr[1]); 
-    b = string_to_col(arr[2]); 
+    r = string_to_col(arr[0]);
+    g = string_to_col(arr[1]);
+    b = string_to_col(arr[2]);
 
     set_rgb(handle,r,g,b);
 }
 
 //////////////////////////////////
 
+/**
+ * @brief The main..
+ *
+ * Opens the device and depending on the mode
+ * input is read from the cmd or from stdin
+ *
+ * @param argc
+ * @param argv
+ *
+ * @return 0 on success, a pretty much random value on failure
+ */
 int main(int argc, char **argv)
 {
     usb_dev_handle *handle = NULL;
@@ -89,8 +225,8 @@ int main(int argc, char **argv)
     /* compute VID/PID from usbconfig.h so that there is a central source of information */
     vid = rawVid[1] * 256 + rawVid[0];
     pid = rawPid[1] * 256 + rawPid[0];
-    /* The following function is in opendevice.c: */
-    if(usbOpenDevice(&handle, vid, vendor, pid, product, NULL, NULL, NULL) != 0)
+
+    if(open_device(&handle, vid, vendor, pid, product, NULL) != 0)
     {
         fprintf(stderr, "Could not find USB device \"%s\" with vid=0x%x pid=0x%x\n", product, vid, pid);
         exit(1);
