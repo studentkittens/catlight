@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 #
-#       developed by Christoph 'kitteh' Piechula :)
+#       developed by Christoph 'qitta' Piechula :)
 
 import time, subprocess
 
