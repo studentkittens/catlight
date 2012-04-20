@@ -1,4 +1,4 @@
 cAtLiGhT
 ========
 
-![Alt screenshot](screenshot.jpg "Catlight in Action")
+![Alt screenshot](https://github.com/sahib/catlight/blob/master/screenshot.jpg "Catlight in Action")
