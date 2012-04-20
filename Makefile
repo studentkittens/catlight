@@ -50,3 +50,6 @@ strip: $(PROGRAM)
 
 clean:
 	rm -f *.o $(PROGRAM)
+
+install:
+	cp $(PROGRAM) /usr/bin/
