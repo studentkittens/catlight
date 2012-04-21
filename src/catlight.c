@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <glib.h>
 #include <usb.h>
 
@@ -36,6 +37,7 @@ static void usage(char *name)
     fprintf(stderr, "  %s off ...... turn off LED\n", name);
     fprintf(stderr, "  %s cat ...... read rgb tuples from stdin\n", name);
     fprintf(stderr, "  %s rgb r g b  Set LED color to r,g,b\n", name);
+    exit(1);
 }
 
 //////////////////////////////////
@@ -112,25 +114,20 @@ static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePa
         for(dev = bus->devices; dev && handle == NULL; dev = dev->next)
         {
             if((vendorID  == 0 || dev->descriptor.idVendor == vendorID)
-                    && (productID == 0 || dev->descriptor.idProduct == productID))
+            && (productID == 0 || dev->descriptor.idProduct == productID))
             {
                 handle = usb_open(dev);
                 if(handle != NULL)
                 {
-                    if(!query_and_match(handle,dev->descriptor.iManufacturer,vendor,sizeof(vendor),vendorNamePattern))
-                        goto continue_search;
+                    if(query_and_match(handle,dev->descriptor.iManufacturer,vendor,sizeof(vendor),vendorNamePattern)   && 
+                       query_and_match(handle,dev->descriptor.iProduct,product,    sizeof(product),productNamePattern) &&
+                       query_and_match(handle,dev->descriptor.iSerialNumber,serial,sizeof(serial),serialNamePattern))
+                    {
+                        *device = handle;
+                        errorCode = 0;
+                        break;
+                    }
 
-                    if(!query_and_match(handle,dev->descriptor.iProduct,product,sizeof(product),productNamePattern))
-                        goto continue_search;
-
-                    if(!query_and_match(handle,dev->descriptor.iSerialNumber,serial,sizeof(serial),serialNamePattern))
-                        goto continue_search;
-
-                    *device = handle;
-                    errorCode = 0;
-                    break;
-
-continue_search:
                     usb_close(handle);
                     handle = NULL;
                 }
@@ -195,6 +192,47 @@ static void set_rgb_from_arr(usb_dev_handle * handle, const char ** arr)
 //////////////////////////////////
 
 /**
+ * @brief Converts a string of the form ABCDEF to a rgb tupel
+ *
+ * @param str a hex string (without #, with containing spaces or newline at the end)
+ * @param r out for red
+ * @param g out for green
+ * @param b out for blue
+ */
+static void hexstring_to_rgb(const char * str, unsigned * r, unsigned * g, unsigned * b)
+{
+    char * is_err = NULL;
+    if(!(str && r && g && b))
+        return;
+
+    union {
+        uint32_t val;
+        unsigned char arr[sizeof(uint32_t)];
+    } rgb_int = {.val=0};
+
+    rgb_int.val = strtoul(str,&is_err,0x10);
+
+    if(is_err == NULL || *is_err == '\n') 
+    {
+// BB|GG|RR|00 
+#if G_BYTE_ORDER == G_LITTLE_ENDIAN
+        *r = rgb_int.arr[2];
+        *g = rgb_int.arr[1];
+        *b = rgb_int.arr[0];
+// 00|BB|GG|RR
+#elif G_BYTE_ORDER == G_BIG_ENDIAN
+        *r = rgb_int.arr[3];
+        *g = rgb_int.arr[2];
+        *b = rgb_int.arr[1];
+#else
+        // Not supported, PDP endian is brainfuck.
+#endif
+    }
+}
+
+//////////////////////////////////
+
+/**
  * @brief The main..
  *
  * Opens the device and depending on the mode
@@ -207,7 +245,7 @@ static void set_rgb_from_arr(usb_dev_handle * handle, const char ** arr)
  */
 int main(int argc, char **argv)
 {
-    usb_dev_handle *handle = NULL;
+    usb_dev_handle * handle = NULL;
     const unsigned char rawVid[2] = {USB_CFG_VENDOR_ID};
     const unsigned char rawPid[2] = {USB_CFG_DEVICE_ID};
     char vendor[] = {USB_CFG_VENDOR_NAME, 0};
@@ -219,7 +257,6 @@ int main(int argc, char **argv)
     if(argc < 2)
     {
         usage(argv[0]);
-        exit(1);
     }
 
     /* compute VID/PID from usbconfig.h so that there is a central source of information */
@@ -241,8 +278,6 @@ int main(int argc, char **argv)
 
         for(;;)
         {
-            bool is_valid = true;
-
             memset(buf,0,size);
             if(fgets(buf,size,stdin) == NULL)
             {
@@ -250,37 +285,44 @@ int main(int argc, char **argv)
                 break;
             }
 
-            /* Split stdin argument of form '255 0 127' */
-            char * node = buf;
-            for(i = 0; i < 3; i++)
+            if(buf[0] == '#')
             {
-                rgb[i] = node;
-                node = strpbrk(node," \n");
-                if(node != NULL)
-                {
-                    *node++ = 0;
-                }
-                else
-                {
-                    is_valid = false;
-                    break;
-                }
+                unsigned r = 0, g = 0, b = 0;
+                hexstring_to_rgb(&buf[1],&r,&g,&b);
+                set_rgb(handle,r,g,b);
             }
-
-            if(is_valid)
+            else
             {
-                set_rgb_from_arr(handle,rgb);
+                bool is_valid = true;
+                char * node = buf;
+                for(i = 0; i < 3; i++)
+                {
+                    rgb[i] = node;
+                    node = strpbrk(node," \n");
+                    if(node != NULL)
+                    {
+                        *node++ = 0;
+                    }
+                    else
+                    {
+                        is_valid = false;
+                        break;
+                    }
+                }
+                if(is_valid)
+                {
+                    set_rgb_from_arr(handle,rgb);
+                }
             }
         }
     }
     else if(strcasecmp(argv[1], "rgb") == 0)
     {
-        set_rgb_from_arr(handle,(const char**)argv+2);
+        set_rgb_from_arr(handle,(const char**)&argv[2]);
     }
     else
     {
         usage(argv[0]);
-        exit(1);
     }
 
     usb_close(handle);
