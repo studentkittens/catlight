@@ -33,7 +33,7 @@
 static void usage(char *name)
 {
     fprintf(stderr, "usage:\n");
-    fprintf(stderr, "  %s on  ....... turn on LED\n", name);
+    fprintf(stderr, "  %s on  ....... turn on LED (white)\n", name);
     fprintf(stderr, "  %s off ....... turn off LED\n", name);
     fprintf(stderr, "  %s cat ....... read rgb tuples from stdin\n", name);
     fprintf(stderr, "  %s rgb  r g b  Set LED color to r,g,b\n", name);
