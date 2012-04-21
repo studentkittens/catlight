@@ -33,10 +33,11 @@
 static void usage(char *name)
 {
     fprintf(stderr, "usage:\n");
-    fprintf(stderr, "  %s on ....... turn on LED\n", name);
-    fprintf(stderr, "  %s off ...... turn off LED\n", name);
-    fprintf(stderr, "  %s cat ...... read rgb tuples from stdin\n", name);
-    fprintf(stderr, "  %s rgb r g b  Set LED color to r,g,b\n", name);
+    fprintf(stderr, "  %s on  ....... turn on LED\n", name);
+    fprintf(stderr, "  %s off ....... turn off LED\n", name);
+    fprintf(stderr, "  %s cat ....... read rgb tuples from stdin\n", name);
+    fprintf(stderr, "  %s rgb  r g b  Set LED color to r,g,b\n", name);
+    fprintf(stderr, "  %s hex #FFFFFF Set LED color from hexstring\n", name);
     exit(1);
 }
 
@@ -212,7 +213,7 @@ static void hexstring_to_rgb(const char * str, unsigned * r, unsigned * g, unsig
 
     rgb_int.val = strtoul(str,&is_err,0x10);
 
-    if(is_err == NULL || *is_err == '\n') 
+    if(is_err == NULL || *is_err == '\n' || *is_err == 0) 
     {
 // BB|GG|RR|00 
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
@@ -316,9 +317,24 @@ int main(int argc, char **argv)
             }
         }
     }
-    else if(strcasecmp(argv[1], "rgb") == 0)
+    else if(strcasecmp(argv[1], "rgb") == 0 && argc > 4)
     {
         set_rgb_from_arr(handle,(const char**)&argv[2]);
+    }
+    else if(strcasecmp(argv[1], "hex") == 0)
+    {
+        unsigned r = 0, g = 0, b = 0;
+        printf("%s\n",&argv[2][1]);
+        hexstring_to_rgb(&argv[2][1],&r,&g,&b);
+        set_rgb(handle,r,g,b);
+    }
+    else if(strcasecmp(argv[1], "on") == 0)
+    {
+        set_rgb(handle,255,255,255);
+    }
+    else if(strcasecmp(argv[1], "off") == 0)
+    {
+        set_rgb(handle,0,0,0);
     }
     else
     {
