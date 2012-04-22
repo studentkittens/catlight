@@ -14,7 +14,7 @@ COLOR = {
         "YELLOW"    :   "{0} {0} 0\n"
         }
 
-led = subprocess.Popen("sudo ../bin/catlight cat", 
+led = subprocess.Popen("sudo /usr/bin/catlight cat", 
                        stdin=subprocess.PIPE, 
                        stdout=subprocess.PIPE, 
                        shell = True) 

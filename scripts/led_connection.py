@@ -9,11 +9,10 @@ def __clamp(value):
 
 def send(r,g,b):
     sendLock.acquire()
-    led.stdin.write(bytes('{0} {1} {2}\n'.format(
+    led.stdin.write('{0} {1} {2}\n'.format(
         __clamp(r),
         __clamp(g),
-        __clamp(b)),
-        'UTF-8'))
+        __clamp(b)))
     sendLock.release()
 
 def on():

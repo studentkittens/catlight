@@ -17,12 +17,7 @@ class Effect(object):
         Wait till effect has finished 
         and shutdown properly
         """
-        if self.thread != None:
-            try:
-                if self.thread.is_alive():
-                    self.thread.join()
-            except RuntimeError as e:
-                print(e)
+        self.kill()
 
     def start(self): 
         """
@@ -31,6 +26,7 @@ class Effect(object):
         self.thread = None
         self.stop = False
         self.thread = threading.Thread(target=self.display())
+        return self
 
     def kill(self):
         """
@@ -73,17 +69,29 @@ class Effect(object):
 
 
 
+class NoneEffect(Effect):
+    """
+    Does nothing at all, but very accurate
+    """
+    def display(self):
+        pass
 
 class Blink(Effect):
     """
     Simple blink effect that holds a certain 
     'color'(default:(255,255,255) for a certain time
+
+    Additionaly a 'wait' timeout may be specified, this simply
+    adds some time to the next effect(defualt: 0)
     """
     def display(self):
         col = self.get_option('color',(255,255,255))
         led_connection.send(*col)
+        if self.stop: return
         time.sleep(self.get_option('duration',3))
         led_connection.off()
+        if self.stop: return
+        time.sleep(self.get_option('wait',0))
 
 
 class SimpleFade(Effect):
@@ -99,6 +107,7 @@ class SimpleFade(Effect):
         for i in range(2):
             r,g,b = 0,0,0
             while r < col[0] or g < col[1] or b < col[2]: 
+                if self.stop: return
                 if r < col[0]: r += step
                 if g < col[1]: g += step
                 if b < col[2]: b += step
@@ -108,6 +117,20 @@ class SimpleFade(Effect):
             
     def display(self):
         self.do_fade()
+
+class HerrchenFade(Effect):
+    """
+    Imitation of the famouse catfade
+    """
+    def display(self):
+        for col in (255,0,0),(0,0,255),(0,255,0),(0,255,255),(255,0,255),(255,255,255),(255,255,0):
+            if self.stop:
+                print("....Killed!....")
+                return
+
+            s = SimpleFade({'color':col,'timeout':0})
+            s.start()
+            s.kill()
 
 class Repeater(Effect):
     """
@@ -124,6 +147,7 @@ class Repeater(Effect):
         if len(effect_list) > 0:
             for i in range(times):
                 for effect in effect_list:
+                    if self.stop: return
                     effect.start()
                     effect.kill()
 
