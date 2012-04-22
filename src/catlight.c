@@ -151,11 +151,11 @@ static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePa
  */
 static void set_rgb(usb_dev_handle * handle, int r, int g, int b)
 {
-    char buffer[4] =  {0,0,0,0};
+    const int timeout = 5000;
     int flags = USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT;
-    usb_control_msg(handle, flags, CUSTOM_RQ_SET_RED,   r, 0, buffer, 0, 5000);
-    usb_control_msg(handle, flags, CUSTOM_RQ_SET_GREEN, g, 0, buffer, 0, 5000);
-    usb_control_msg(handle, flags, CUSTOM_RQ_SET_BLUE,  b, 0, buffer, 0, 5000);
+    usb_control_msg(handle, flags, CUSTOM_RQ_SET_RED,   r, 0, NULL, 0, timeout);
+    usb_control_msg(handle, flags, CUSTOM_RQ_SET_GREEN, g, 0, NULL, 0, timeout);
+    usb_control_msg(handle, flags, CUSTOM_RQ_SET_BLUE,  b, 0, NULL, 0, timeout);
 }
 
 //////////////////////////////////

@@ -1,1 +1,4 @@
 *.o
+__pycache__/
+*.pyc
+bin/
