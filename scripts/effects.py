@@ -35,12 +35,17 @@ class Effect(object):
         """
         if self.thread.is_alive():
             self.stop = True
+            self.wait()
+            self.stop = False
+
+    def wait(self):
+        if self.thread.is_alive():
             try:
                 self.thread.join()
                 self.thread = None
             except RuntimeError as e:
                 print(e)
-            self.stop = False
+
 
     def set_options(self,options):
         """
@@ -149,13 +154,19 @@ class Repeater(Effect):
                     effect.kill()
 
 
+
 if __name__ == '__main__':
-    effect_list = []
-    for col in ((255,0,0),(255,255,0),(255,0,255),(255,255,255),(0,255,0),(0,0,255)):
-        effect_list.append(SimpleFade({'timeout':0.001,'color':col}))
-    
+    def exec_effect(eff):
+        eff.start()
+        eff.wait()
+        time.sleep(1)
+
+    exec_effect(SimpleFade())
+    exec_effect(HerrchenFade())
+    exec_effect(Blink())
+
     Repeater({
-        'effects' : effect_list,
+        'effects' : [HerrchenFade()],
         'times'   : -1
-        }).start()
+        }).start().kill()
 
