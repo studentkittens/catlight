@@ -124,10 +124,7 @@ class HerrchenFade(Effect):
     """
     def display(self):
         for col in (255,0,0),(0,0,255),(0,255,0),(0,255,255),(255,0,255),(255,255,255),(255,255,0):
-            if self.stop:
-                print("....Killed!....")
-                return
-
+            if self.stop: return
             s = SimpleFade({'color':col,'timeout':0})
             s.start()
             s.kill()
