@@ -36,6 +36,9 @@ class Color(object):
     #  Operators  #
     ###############
 
+    def __eq__(self, rhs):
+        return (self._col, self.time) == (rhs._col, rhs.time)
+
     def __iter__(self):
         return iter(self._col)
 

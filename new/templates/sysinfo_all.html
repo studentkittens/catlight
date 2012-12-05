@@ -1,0 +1,17 @@
+<html>
+    <body>
+        {% if show_version %}
+        <h2>
+            This is pythonz version: {{ pyversion }}
+        </h2>
+        {% endif %}
+        <table border="1">
+            {% for key, value in sysinfo.items() %}
+            <tr>
+                <td>{{ key   }}</td>
+                <td>{{ value }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </body>
+</html>

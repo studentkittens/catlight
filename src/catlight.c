@@ -139,6 +139,8 @@ static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePa
     return errorCode;
 }
 
+/// Added a comment.
+
 //////////////////////////////////
 
 /**
