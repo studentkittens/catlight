@@ -65,25 +65,34 @@ class SenderThread(multiprocessing.Process):
 
 
 def start_sender():
-    sender = SenderThread()
     sender.start()
     return sender
 
 
 if __name__ == '__main__':
-    sender = start_sender()
     import color as c
     import effects as e
 
-    l, r = [], []
-    for v in range(256):
-            l.append(c.Color(0, v, 0, 10))
-            r.append(c.Color(0, 0, 255 - v, 10))
+    #l, r = [], []
+    #for v in range(256):
+    #        l.append(c.Color(0, v, 0, 10))
+    #        r.append(c.Color(0, 0, 255 - v, 10))
 
     #sender.send(l)
     #sender.send(c.Color(255, 0, 0, 1000))
     #sender.send(r)
-    sender.send(e.SimpleFade(color=c.Color(255, 0, 0)))
+    #sender.send(e.SimpleFade(color=c.Color(255, 0, 0)))
+
+    c1 = c.Color(255, 0, 0, time=1000)
+    c2 = c.Color(0, 0, 255, time=1000)
+    c3 = c.Color(0, 255, 0, time=1000)
+
+    sender = SenderThread()
+    sender = start_sender()
+    sender.send(c1)
+    sender.send(c1 + c2)
+    sender.send(c1 + c2 + c3)
+    sender.send(c.Color(0,0,0))
 
     logging.warn('** Waiting to finish.')
     sender.stop()

@@ -4,7 +4,8 @@
 
 class Color(object):
     def __init__(self, r=0, g=0, b=0, time=0):
-        self._col = tuple(map(lambda x: min(max(x, 0), 255), (r, g, b)))
+        self._col = (r, g, b)
+        #self._col = tuple(map(lambda x: min(max(x, 0), 255), (r, g, b)))
         self._time = time
 
     ################
@@ -45,5 +46,9 @@ class Color(object):
         return "{r} {g} {b}".format(r=self._col[0], g=self._col[1], b=self._col[2])
 
     def __add__(self, rhs):
-        self._col = tuple(map(lambda a, b: a + b, self._col, rhs._col))
-        return self
+        retv = Color(time=self.time)
+        retv._col = tuple(map(lambda a, b: a + b, self._col, rhs._col))
+        return retv
+
+    def __sub__(self, rhs):
+        return self + Color(r=-self.red, g=-self.green, b=-self.blue)
