@@ -107,10 +107,6 @@ if __name__ == '__main__':
     #sender.send(r)
     sender.send(e.SimpleFade(speed=100, color=c.Color(255, 0, 0)))
 
-    #c1 = c.Color(255, 0, 0, time=1000)
-    #c2 = c.Color(0, 0, 255, time=1000)
-    #c3 = c.Color(0, 255, 0, time=1000)
-
     #sender.send(c1)
     #sender.send(c1 + c2)
     #sender.send(c1 + c2 + c3)

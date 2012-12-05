@@ -2,22 +2,23 @@ import json
 import os
 import sys
 
-from flask import Flask, Response, render_template, request, redirect, url_for,current_app
+from flask import Flask, Response, render_template, request, redirect, url_for
 
 import sender
 import color
 
 app = Flask(__name__)
-queue = None
+queue = sender.start_sender()
 
-@app.route('/', methods = ['POST', 'GET'])
+
+@app.route('/', methods=['POST', 'GET'])
 def root():
     if request.method == 'POST':
         try:
             red = int(request.form['red'])
             green = int(request.form['green'])
             blue = int(request.form['blue'])
-            g.qp.send(color.Color(red, green, blue))
+            queue.send(color.Color(red, green, blue))
         except:
             pass
         finally:
@@ -50,7 +51,7 @@ def api_rgb_time(r, g, b, time):
 @app.route('/api/list')
 def api_list():
     json_list = []
-    for col in g.qp.list_queue():
+    for col in queue.list_queue():
         json_list.append({
             'rgb': [col.red, col.green, col.blue],
             'time': col.time
@@ -73,5 +74,5 @@ def sysinfo():
 
 
 if __name__ == '__main__':
-    queue = sender.start_sender()
+
     app.run(debug=True, host='0.0.0.0', port=5000)
