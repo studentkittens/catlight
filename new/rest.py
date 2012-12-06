@@ -3,7 +3,6 @@ import os
 import sys
 
 from flask import Flask, Response, render_template, request, redirect, url_for
-
 import sender
 import color
 
@@ -11,31 +10,10 @@ app = Flask(__name__)
 queue = sender.start_sender()
 
 
-@app.route('/', methods=['POST', 'GET'])
-def root():
-    if request.method == 'POST':
-        try:
-            red = int(request.form['red'])
-            green = int(request.form['green'])
-            blue = int(request.form['blue'])
-            queue.send(color.Color(red, green, blue))
-        except:
-            pass
-        finally:
-            return redirect(url_for('root'))
-    else:
-        return '''<form action="" method="post">
-                    <p>R: <input type=text name=red></p>
-                    <p>G: <input type=text name=green></p>
-                    <p>B: <input type=text name=blue></p>
-                    <p><input type=submit value=submit></p>
-                  </form>'''
-
-
 def set_rgb_time(r, g, b, time):
     c = color.Color(r, g, b, time)
     queue.send(c)
-    return 'OK ' + repr(c)
+    return json.dumps([c.red, c.green, c.blue])
 
 
 @app.route('/api/r/<int:r>/g/<int:g>/b/<int:b>')
@@ -73,6 +51,25 @@ def sysinfo():
             sysinfo=sysinfo_all, show_version=True)
 
 
-if __name__ == '__main__':
+@app.route('/', methods=['POST', 'GET'])
+def root():
+    if request.method == 'POST':
+        try:
+            red = int(request.form['red'])
+            green = int(request.form['green'])
+            blue = int(request.form['blue'])
+            queue.send(color.Color(red, green, blue))
+        except:
+            print('Some error happened - Redirecting.')
+        finally:
+            return redirect(url_for('root'))
+    else:
+        return '''<form action="" method="post">
+                    <p>R: <input type=text name=red></p>
+                    <p>G: <input type=text name=green></p>
+                    <p>B: <input type=text name=blue></p>
+                    <p><input type=submit value=submit></p>
+                  </form>'''
 
+if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -5,7 +5,6 @@ import threading
 import subprocess
 import time
 import collections
-import copy
 import Queue
 
 import color
@@ -38,6 +37,7 @@ class SenderThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def send(self, color_obj):
+        'Send an iterable or a color to the catlight Queue.'
         if isinstance(color_obj, color.Color):
             self._stack.append(color_obj)
         elif isinstance(color_obj, collections.Iterable):
@@ -46,6 +46,7 @@ class SenderThread(threading.Thread):
         self._queue.put(color_obj)
 
     def list_queue(self):
+        'List all jobs that are in the Queue. Returns a list of Colors.'
         try:
             while True:
                 e = self._bklog.get_nowait()
