@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import threading
+import multiprocessing
 import subprocess
 import time
 import collections
@@ -28,13 +28,13 @@ class CatlightPipe(object):
         print('** Catlight terminated (# {pid})'.format(pid=self._pipe.pid))
 
 
-class SenderThread(threading.Thread):
+class SenderThread(multiprocessing.Process):
     def __init__(self):
         self._stack = []
-        self._bklog = Queue.Queue()
-        self._queue = Queue.Queue()
+        self._bklog = multiprocessing.Queue()
+        self._queue = multiprocessing.Queue()
         self._pipe = CatlightPipe()
-        threading.Thread.__init__(self)
+        multiprocessing.Process.__init__(self)
 
     def send(self, color_obj):
         'Send an iterable or a color to the catlight Queue.'
@@ -69,6 +69,7 @@ class SenderThread(threading.Thread):
     def run(self):
         while True:
             e = self._queue.get()
+            print('getting:', e)
             if e is TERMINAL_ITEM:
                 break
             elif isinstance(e, color.Color):
@@ -86,7 +87,6 @@ class SenderThread(threading.Thread):
 
 
 def start_sender():
-    print('** Starting SenderThread')
     s = SenderThread()
     s.start()
     return s

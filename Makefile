@@ -52,4 +52,5 @@ clean:
 	rm -f *.o $(PROGRAM)
 
 install:
+	chmod u+s $(PROGRAM)
 	cp $(PROGRAM) /usr/bin/
