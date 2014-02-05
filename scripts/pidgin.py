@@ -22,9 +22,9 @@ SENDER = sender.start_sender()
 # Actual uIDs are used, not aliases
 buddy_reactions = {
     r'christoph.*\.nullcat\.de.*': KaminFeuerDerLust(),
-    r'digitalkraut@jabber.fsfe.org': SimpleFade(color=Color(255, 0, 255)),
-    r'serztle@jabber.nullcat.de': SimpleFade(color=Color(171, 243, 15)),
-    r'mausmaki@jabber.nullcat.de': SimpleFade(color=Color(255, 0, 0))
+    r'digitalkraut.*': SimpleFade(color=Color(255, 0, 255)),
+    r'serztle.*': SimpleFade(color=Color(171, 243, 15)),
+    r'mausmaki.*': SimpleFade(color=Color(255, 0, 0))
 }
 
 
