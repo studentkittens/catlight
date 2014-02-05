@@ -21,11 +21,10 @@ SENDER = sender.start_sender()
 
 # Actual uIDs are used, not aliases
 buddy_reactions = {
-        'christoph@jabber.nullcat.de*': KaminFeuerDerLust(),
-        'zwille@jabber.i-pobox.net': SimpleFade(color=Color(255, 0, 0)),
-        'eddys@jabber.i-pobox.net': SimpleFade(color=Color(128, 0, 0)),
-        '431575929': SimpleFade(color=Color(0, 255, 0)),
-        '395752334': SimpleFade(color=Color(0, 0, 255))
+    r'christoph.*\.nullcat\.de.*': KaminFeuerDerLust(),
+    r'digitalkraut@jabber.fsfe.org': SimpleFade(color=Color(255, 0, 255)),
+    r'serztle@jabber.nullcat.de': SimpleFade(color=Color(171, 243, 15)),
+    r'mausmaki@jabber.nullcat.de': SimpleFade(color=Color(255, 0, 0))
 }
 
 
@@ -33,12 +32,15 @@ class Listener:
     def __init__(self):
         self.__bus = dbus.SessionBus()
         self.__bus.add_signal_receiver(self.received_msg,
-                dbus_interface="im.pidgin.purple.PurpleInterface",
-                signal_name="ReceivedImMsg")
+            dbus_interface="im.pidgin.purple.PurpleInterface",
+            signal_name="ReceivedImMsg"
+        )
 
     def received_msg(self, account, sender, message, conversation, flags):
-        effect = buddy_reactions.get(sender, SimpleFade())
-        SENDER.send(effect)
+        print(account, sender)
+        for regex, effect in buddy_reactions.items():
+            if re.search(regex, sender):
+                SENDER.send(effect)
 
 
 if __name__ == '__main__':

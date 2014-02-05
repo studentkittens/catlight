@@ -42,14 +42,14 @@ class KaminFeuerDerLust(object):
 
         NUM = 1024
         for t in range(NUM):
-            b = calc_color(t, num=NUM, fac=1.0, jitter=50)
+            r = calc_color(t, num=NUM, fac=1.0, jitter=50)
             g = calc_color(t, num=NUM, fac=0.15, jitter=100)
-            r = calc_color(t, num=NUM, fac=0.01, jitter=10)
+            b = calc_color(t, num=NUM, fac=0.01, jitter=10)
 
             yield color.Color(r, g, b, time=15)
 
-        # Glut der Lust.
-        yield color.Color(0, 2, 25, time=1000)
+        # Off:
+        yield color.Color(0, 0, 0, time=20)
 
 
 class Repeater(object):

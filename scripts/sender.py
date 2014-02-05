@@ -69,7 +69,6 @@ class SenderThread(multiprocessing.Process):
     def run(self):
         while True:
             e = self._queue.get()
-            print('getting:', e)
             if e is TERMINAL_ITEM:
                 break
             elif isinstance(e, color.Color):
@@ -96,36 +95,14 @@ if __name__ == '__main__':
     import color as c
     import effects as e
 
-    '''
-    l, r = [], []
-    for v in range(256):
-            l.append(c.Color(0, v, 0, 10))
-            r.append(c.Color(0, 0, 255 - v, 10))
-
     sender = start_sender()
-    #sender.send(l)
-    #sender.send(c.Color(255, 0, 0, 1000))
-    #sender.send(r)
-    sender.send(e.SimpleFade(speed=100, color=c.Color(255, 0, 0)))
-
-    #sender.send(c1)
-    #sender.send(c1 + c2)
-    #sender.send(c1 + c2 + c3)
-    #sender.send(c.Color(0,0,0))
-
-    sender.stop()
-    '''
-
-    print('...')
-    sender = start_sender()
-    print('...?')
-    print(sender.list_queue())
     sender.send(c.Color(255, 0, 0, 1000))
-    print(sender.list_queue())
     sender.send(c.Color(0, 0, 255, 5000))
-    print(sender.list_queue())
-    print(sender.send(e.SimpleFade()))
-    time.sleep(1.2)
-    print(sender.list_queue())
-    sender.stop()
+    sender.send(e.SimpleFade())
 
+    for tup in [(255, 0, 0), (0, 255, 0), (0, 0, 255),
+                (255, 255, 0), (0, 255, 255), (255, 0, 255),
+                (255, 255, 255)]:
+        sender.send(e.SimpleFade(color=c.Color(*tup)))
+
+    sender.stop()
