@@ -1,7 +1,7 @@
 /* Name: catlight.c
  * Author: C. Pahl, based on code by Christian Starkjohann
  * Creation Date: 2012-4-20
- * License: GNU GPL v3 
+ * License: GNU GPL v3
  */
 
 #include <stdio.h>
@@ -9,9 +9,16 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <error.h>
+#include <errno.h>
+#include <unistd.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include <glib.h>
 #include <usb.h>
 
+#define USB 0
 #define MAX_BUF_LEN 256
 
 /* Taken from original firmware/request.h */
@@ -43,6 +50,7 @@ static void usage(char *name)
 
 //////////////////////////////////
 
+#if USB
 /**
  * @brief Match a string against a shell style pattern (hello?world*)
  *
@@ -120,7 +128,7 @@ static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePa
                 handle = usb_open(dev);
                 if(handle != NULL)
                 {
-                    if(query_and_match(handle,dev->descriptor.iManufacturer,vendor,sizeof(vendor),vendorNamePattern)   && 
+                    if(query_and_match(handle,dev->descriptor.iManufacturer,vendor,sizeof(vendor),vendorNamePattern)   &&
                        query_and_match(handle,dev->descriptor.iProduct,product,    sizeof(product),productNamePattern) &&
                        query_and_match(handle,dev->descriptor.iSerialNumber,serial,sizeof(serial),serialNamePattern))
                     {
@@ -139,10 +147,6 @@ static int open_device(usb_dev_handle **device, int vendorID, char *vendorNamePa
     return errorCode;
 }
 
-/// Added a comment.
-
-//////////////////////////////////
-
 /**
  * @brief Set the actual color (0-255 x 3) for an actual device
  *
@@ -159,6 +163,64 @@ static void set_rgb(usb_dev_handle * handle, int r, int g, int b)
     usb_control_msg(handle, flags, CUSTOM_RQ_SET_GREEN, g, 0, NULL, 0, timeout);
     usb_control_msg(handle, flags, CUSTOM_RQ_SET_BLUE,  b, 0, NULL, 0, timeout);
 }
+
+#else
+
+//////////////////////////////////
+
+/**
+ * @brief Open the catlight device for arduino
+ *
+ * @param fd the opened devive, passed as reference
+ * @param portname name of the serial port
+ * @param baudrate communication speed
+ *
+ * @return 0 on success, other values on failure
+ */
+static int open_device(int *fd, char *portname, int baudrate)
+{
+    struct termios tty;
+    memset(&tty, 0, sizeof(tty));
+
+    *fd = open(portname, O_RDWR | O_NOCTTY);
+
+    if (*fd < 0)
+        return -1;
+    if (tcgetattr(*fd, &tty) != 0)
+        return -1;
+
+    cfsetospeed (&tty, baudrate);
+    cfsetispeed (&tty, baudrate);
+
+    tty.c_cflag |= (CLOCAL | CREAD);
+    tty.c_cflag &= ~CSIZE;
+    tty.c_cflag |= CS8;
+    tty.c_cflag &= ~PARENB;
+    tty.c_cflag &= ~CSTOPB;
+    tty.c_lflag |= ICANON;
+    tty.c_lflag &= ~( ISIG | ECHO | ECHOE);
+    tty.c_cflag &= ~HUPCL;
+
+    if (tcsetattr(*fd, TCSANOW, &tty) != 0)
+        return -1;
+
+    return 0;
+}
+
+//////////////////////////////////
+
+static void set_rgb(int fd, int r, int g, int b)
+{
+    unsigned char buf[5];
+    buf[0] = 0x02;
+    buf[1] = (unsigned char)r;
+    buf[2] = (unsigned char)g;
+    buf[3] = (unsigned char)b;
+    buf[4] = 0x03;
+    printf("%02X %02X %02X %02X %02X\n", buf[0], buf[1], buf[2], buf[3], buf[4]);
+    write(fd, buf, 5);
+}
+#endif
 
 //////////////////////////////////
 
@@ -182,7 +244,11 @@ static int string_to_col(const char * arg)
  * @param handle the open device
  * @param arr a string array
  */
+#if USB
 static void set_rgb_from_arr(usb_dev_handle * handle, const char ** arr)
+#else
+static void set_rgb_from_arr(int handle, const char ** arr)
+#endif
 {
     int r,g,b;
     r = string_to_col(arr[0]);
@@ -215,9 +281,9 @@ static void hexstring_to_rgb(const char * str, unsigned * r, unsigned * g, unsig
 
     rgb_int.val = strtoul(str,&is_err,0x10);
 
-    if(is_err == NULL || *is_err == '\n' || *is_err == 0) 
+    if(is_err == NULL || *is_err == '\n' || *is_err == 0)
     {
-// BB|GG|RR|00 
+// BB|GG|RR|00
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
         *r = rgb_int.arr[2];
         *g = rgb_int.arr[1];
@@ -248,6 +314,7 @@ static void hexstring_to_rgb(const char * str, unsigned * r, unsigned * g, unsig
  */
 int main(int argc, char **argv)
 {
+#if USB
     usb_dev_handle * handle = NULL;
     const unsigned char rawVid[2] = {USB_CFG_VENDOR_ID};
     const unsigned char rawPid[2] = {USB_CFG_DEVICE_ID};
@@ -256,12 +323,14 @@ int main(int argc, char **argv)
     int vid, pid;
 
     usb_init();
+#else
+    int handle;
+#endif
 
     if(argc < 2)
-    {
         usage(argv[0]);
-    }
 
+#if USB
     /* compute VID/PID from usbconfig.h so that there is a central source of information */
     vid = rawVid[1] * 256 + rawVid[0];
     pid = rawPid[1] * 256 + rawPid[0];
@@ -271,6 +340,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "Could not find USB device \"%s\" with vid=0x%x pid=0x%x\n", product, vid, pid);
         exit(1);
     }
+#else
+    if (open_device(&handle, "/dev/ttyACM0", B115200) != 0)
+        error(1, errno, "Could not open device");
+#endif
 
     if(strcasecmp(argv[1], "cat") == 0)
     {
@@ -343,6 +416,10 @@ int main(int argc, char **argv)
         usage(argv[0]);
     }
 
+#if USB
     usb_close(handle);
+#else
+    close(handle);
+#endif
     return EXIT_SUCCESS;
 }
