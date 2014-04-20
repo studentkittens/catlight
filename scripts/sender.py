@@ -100,9 +100,10 @@ if __name__ == '__main__':
     sender.send(c.Color(0, 0, 255, 5000))
     sender.send(e.SimpleFade())
 
-    for tup in [(255, 0, 0), (0, 255, 0), (0, 0, 255),
-                (255, 255, 0), (0, 255, 255), (255, 0, 255),
-                (255, 255, 255)]:
-        sender.send(e.SimpleFade(color=c.Color(*tup)))
+    while True:
+        for tup in [(255, 0, 0), (0, 255, 0), (0, 0, 255),
+                    (255, 255, 0), (0, 255, 255), (255, 0, 255),
+                    (255, 255, 255)]:
+            sender.send(e.SimpleFade(color=c.Color(*tup)))
 
     sender.stop()

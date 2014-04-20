@@ -41,6 +41,8 @@ class Listener:
         for regex, effect in buddy_reactions.items():
             if re.search(regex, sender):
                 SENDER.send(effect)
+        else:
+            SENDER.send(SimpleFade(color=Color(255, 255, 255)))
 
 
 if __name__ == '__main__':
