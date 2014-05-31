@@ -24,7 +24,8 @@ buddy_reactions = {
     r'christoph.*\.nullcat\.de.*': KaminFeuerDerLust(),
     r'digitalkraut.*': SimpleFade(color=Color(255, 0, 255)),
     r'serztle.*': SimpleFade(color=Color(171, 243, 15)),
-    r'mausmaki.*': SimpleFade(color=Color(255, 0, 0))
+    r'mausmaki.*': SimpleFade(color=Color(255, 0, 0)),
+    r'bubblebee.*': SimpleFade(color=Color(255, 127, 0))
 }
 
 
