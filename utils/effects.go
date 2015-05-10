@@ -16,7 +16,7 @@ func (q *EffectQueue) Push(e Effect) {
 	c := e.ComposeEffect()
 	for color := range c {
 		colorValue := fmt.Sprintf("%d %d %d\n", color.R, color.G, color.B)
-		fmt.Println(colorValue)
+		// fmt.Println(colorValue)
 		q.StdInPipe.Write([]byte(colorValue))
 	}
 }
@@ -129,13 +129,13 @@ func (effect *FadeEffect) ComposeEffect() chan SimpleColor {
 	return c
 }
 
-func main() {
-	q, err := CreateEffectQueue()
-	if err != nil {
-		fmt.Println(err)
-
-	}
-	//q.Push(&SimpleColor{0, 255, 0})
-
-	q.Push(&FadeEffect{Properties{Delay: 4 * time.Millisecond, Color: SimpleColor{255, 77, 0}, Repeat: 3}})
-}
+// func main() {
+// 	q, err := CreateEffectQueue()
+// 	if err != nil {
+// 		fmt.Println(err)
+//
+// 	}
+// 	//q.Push(&SimpleColor{0, 255, 0})
+//
+// 	q.Push(&FadeEffect{Properties{Delay: 4 * time.Millisecond, Color: SimpleColor{255, 77, 0}, Repeat: 3}})
+// }
