@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"os/exec"
+	"os/signal"
 	"time"
 )
 
@@ -24,11 +27,11 @@ func (j Job) String() string {
 
 func (repo *Repository) IsNewer(other *Repository) bool {
 	if repo == nil || len(repo.Builds) == 0 {
-		return true
+		return false
 	}
 
 	if other == nil || len(repo.Builds) == 0 {
-		return false
+		return true
 	}
 
 	return repo.Builds[0].State != other.Builds[0].State
@@ -110,8 +113,8 @@ func main() {
 	namePromise := flag.String("name", "rmlint", "GitHub repo name")
 	flag.Parse()
 
-	oldRepo := NewRepo(*userPromise, *namePromise)
 	var newRepo *Repository = nil
+	var oldRepo *Repository = nil
 
 	queue, err := CreateEffectQueue()
 	if err != nil {
@@ -119,17 +122,34 @@ func main() {
 		return
 	}
 
-	if oldRepo != nil {
-		oldRepo.Visualize(queue)
-	}
+	sigs := make(chan os.Signal, 1)
+	upds := make(chan bool, 1)
+	signal.Notify(sigs, os.Interrupt)
+
+	upds <- true
 
 	for {
-		newRepo = NewRepo(*userPromise, *namePromise)
-		if newRepo.IsNewer(oldRepo) {
-			newRepo.Visualize(queue)
-		}
+		select {
+		case sig := <-sigs:
+			fmt.Println("SIGNAL:", sig)
+			// Can't use queue; catlight process was killed by SIGINT too.
+			defer func() {
+				cmd := exec.Command("catlight", "off")
+				cmd.Run()
+			}()
+			return
+		case <-upds:
+			go func() {
+				newRepo = NewRepo(*userPromise, *namePromise)
+				if newRepo.IsNewer(oldRepo) {
+					newRepo.Visualize(queue)
+				}
 
-		time.Sleep(time.Millisecond * 5000)
-		oldRepo = newRepo
+				oldRepo = newRepo
+				time.Sleep(5000 * time.Millisecond)
+				upds <- true
+			}()
+		}
 	}
+
 }

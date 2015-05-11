@@ -16,7 +16,6 @@ func (q *EffectQueue) Push(e Effect) {
 	c := e.ComposeEffect()
 	for color := range c {
 		colorValue := fmt.Sprintf("%d %d %d\n", color.R, color.G, color.B)
-		// fmt.Println(colorValue)
 		q.StdInPipe.Write([]byte(colorValue))
 	}
 }
