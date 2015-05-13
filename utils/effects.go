@@ -128,6 +128,37 @@ func (effect *FadeEffect) ComposeEffect() chan SimpleColor {
 	return c
 }
 
+type BlendEffect struct {
+	StartColor SimpleColor
+	EndColor   SimpleColor
+	Duration   time.Duration
+}
+
+func (effect *BlendEffect) ComposeEffect() chan SimpleColor {
+	c := make(chan SimpleColor, 1)
+	go func() {
+		// How much colors should be generated during the effect?
+		N := 100 * effect.Duration.Seconds()
+
+		sr := float64(effect.StartColor.R)
+		sg := float64(effect.StartColor.G)
+		sb := float64(effect.StartColor.B)
+
+		for i := 0; i < int(N); i++ {
+			sr += (float64(effect.EndColor.R) - float64(effect.StartColor.R)) / N
+			sg += (float64(effect.EndColor.G) - float64(effect.StartColor.G)) / N
+			sb += (float64(effect.EndColor.B) - float64(effect.StartColor.B)) / N
+
+			c <- SimpleColor{uint8(sr), uint8(sg), uint8(sb)}
+			time.Sleep(time.Duration(1/N*1000) * time.Millisecond)
+		}
+
+		close(c)
+	}()
+
+	return c
+}
+
 // func main() {
 // 	q, err := CreateEffectQueue()
 // 	if err != nil {
@@ -135,6 +166,10 @@ func (effect *FadeEffect) ComposeEffect() chan SimpleColor {
 //
 // 	}
 // 	//q.Push(&SimpleColor{0, 255, 0})
-//
-// 	q.Push(&FadeEffect{Properties{Delay: 4 * time.Millisecond, Color: SimpleColor{255, 77, 0}, Repeat: 3}})
+// 	q.Push(&BlendEffect{
+// 		SimpleColor{255, 0, 0},
+// 		SimpleColor{0, 0, 255},
+// 		time.Millisecond * 5000,
+// 	})
+// q.Push(&FadeEffect{Properties{Delay: 4 * time.Millisecond, Color: SimpleColor{255, 77, 0}, Repeat: 3}})
 // }

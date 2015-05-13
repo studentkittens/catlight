@@ -18,7 +18,8 @@ type Job struct {
 }
 
 type Repository struct {
-	Builds []Job `json:"builds"`
+	Builds    []Job `json:"builds"`
+	PrevState string
 }
 
 func (j Job) String() string {
@@ -34,15 +35,17 @@ func (repo *Repository) IsNewer(other *Repository) bool {
 		return true
 	}
 
+	repo.PrevState = other.PrevState
 	return repo.Builds[0].State != other.Builds[0].State
 }
 
 var COLORS = map[string]SimpleColor{
+	"initial":  SimpleColor{0, 0, 0},
 	"passed":   SimpleColor{0, 255, 0},
-	"created":  SimpleColor{0, 0, 255},
-	"received": SimpleColor{255, 255, 0},
-	"started":  SimpleColor{255, 255, 128},
-	"errored":  SimpleColor{255, 0, 0},
+	"created":  SimpleColor{255, 255, 255},
+	"received": SimpleColor{255, 255, 64},
+	"started":  SimpleColor{255, 255, 0},
+	"errored":  SimpleColor{0, 0, 255},
 	"failed":   SimpleColor{255, 0, 0},
 }
 
@@ -61,12 +64,19 @@ func (repo *Repository) Visualize(queue *EffectQueue) {
 		color = COLORS["errored"]
 	}
 
-	queue.Push(&FlashEffect{Properties{
-		Delay:  250 * time.Millisecond,
-		Color:  color,
-		Repeat: 3,
-	}})
+	queue.Push(&BlendEffect{
+		StartColor: COLORS[repo.PrevState],
+		EndColor:   color,
+		Duration:   time.Millisecond * 10000,
+	})
+
+	// queue.Push(&FlashEffect{Properties{
+	// 	Delay:  250 * time.Millisecond,
+	// 	Color:  color,
+	// 	Repeat: 3,
+	// }})
 	queue.Push(&color)
+	repo.PrevState = state
 }
 
 func DownloadRepo(user string, name string) ([]byte, error) {
@@ -102,7 +112,9 @@ func ParseJson(data []byte) *Repository {
 
 func NewRepo(user string, name string) *Repository {
 	if data, err := DownloadRepo(user, name); err == nil {
-		return ParseJson(data)
+		repo := ParseJson(data)
+		repo.PrevState = "initial"
+		return repo
 	}
 
 	return nil
