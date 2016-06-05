@@ -43,7 +43,7 @@ class KaminFeuerDerLust(object):
         NUM = 1024
         for t in range(NUM):
             r = calc_color(t, num=NUM, fac=1.0, jitter=50)
-            g = calc_color(t, num=NUM, fac=0.15, jitter=100)
+            g = calc_color(t, num=NUM, fac=0.10, jitter=100)
             b = calc_color(t, num=NUM, fac=0.01, jitter=10)
 
             yield color.Color(r, g, b, time=15)

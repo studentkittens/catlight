@@ -69,14 +69,16 @@ func (color *SimpleColor) ComposeEffect() chan SimpleColor {
 func (effect *FlashEffect) ComposeEffect() chan SimpleColor {
 	c := make(chan SimpleColor, 1)
 	keepLooping := false
-	if effect.Repeat <= 0 {
+	if effect.Repeat < 0 {
 		keepLooping = true
 	}
+
 	go func() {
 		for {
 			if effect.Repeat <= 0 && !keepLooping {
 				break
 			}
+
 			c <- effect.Color
 			time.Sleep(effect.Delay)
 			c <- SimpleColor{0, 0, 0}
@@ -103,7 +105,7 @@ func (effect *FadeEffect) ComposeEffect() chan SimpleColor {
 	c := make(chan SimpleColor, 1)
 
 	keepLooping := false
-	if effect.Repeat <= 0 {
+	if effect.Repeat < 0 {
 		keepLooping = true
 	}
 
@@ -166,6 +168,89 @@ func (effect *BlendEffect) ComposeEffect() chan SimpleColor {
 	return c
 }
 
+func readMoodbarFile(path string) ([]*SimpleColor, error) {
+	results := []*SimpleColor{}
+
+	fd, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	defer fd.Close()
+
+	rgb := make([]byte, 3)
+	for {
+		_, err := fd.Read(rgb)
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+
+		results = append(results, &SimpleColor{
+			uint8(rgb[0]),
+			uint8(rgb[1]),
+			uint8(rgb[2]),
+		})
+
+		if err == io.EOF {
+			break
+		}
+	}
+
+	return results, nil
+}
+
+type MoodbarEffect struct {
+	// Path to .mood file
+	Path string
+
+	// Delay in between mood steps.
+	Delay time.Duration
+
+	// SeekPos determines where to start in the moodbar.
+	SeekPos int
+}
+
+func (effect *MoodbarEffect) ComposeEffect() chan SimpleColor {
+	c := make(chan SimpleColor, 1)
+
+	go func() {
+		defer close(c)
+
+		data, err := readMoodbarFile(effect.Path)
+		if err != nil {
+			log.Printf("Failed to read mood file (%s): %v", effect.Path, err)
+			return
+		}
+
+		data = data[effect.SeekPos:]
+
+		for idx := range data {
+			curr := data[idx]
+			if idx+1 >= len(data) {
+				c <- *curr
+				break
+			}
+
+			next := data[idx+1]
+
+			// Add a slight fade:
+
+			N := 10
+			for i := 0; i < N; i++ {
+				c <- SimpleColor{
+					uint8((int(curr.R)*(N-i) + int(next.R)*i) / N),
+					uint8((int(curr.G)*(N-i) + int(next.G)*i) / N),
+					uint8((int(curr.B)*(N-i) + int(next.B)*i) / N),
+				}
+
+				time.Sleep(effect.Delay / 10)
+			}
+		}
+	}()
+
+	return c
+}
+
 ////////////// EFFECT SPEC PARSING //////////////////
 
 var (
@@ -219,6 +304,28 @@ func parseBlendEffect(s string) (*BlendEffect, error) {
 	}
 
 	return &BlendEffect{*srcColor, *dstColor, duration}, nil
+}
+
+func parseMoodbarEffect(s string) (*MoodbarEffect, error) {
+	// Same regex as for properties (by chance)
+	matches := REGEX_PROPERTIES.FindStringSubmatch(s)
+	if matches == nil {
+		return nil, fmt.Errorf("Bad blend effect: %s", s)
+	}
+
+	path := matches[1]
+
+	duration, err := time.ParseDuration(matches[2])
+	if err != nil {
+		return nil, fmt.Errorf("Bad duration: `%s`: %v", matches[2], err)
+	}
+
+	seekPos, err := strconv.Atoi(matches[3])
+	if err != nil {
+		return nil, fmt.Errorf("Bad seek pos: %v", err)
+	}
+
+	return &MoodbarEffect{path, duration, seekPos}, nil
 }
 
 func parseProperties(s string) (*Properties, error) {
@@ -276,6 +383,8 @@ func parseEffect(s string) (Effect, error) {
 		return parseFadeEffect(rest)
 	case "flash":
 		return parseFlashEffect(rest)
+	case "moodbar":
+		return parseMoodbarEffect(rest)
 	case "blend":
 		return parseBlendEffect(rest)
 	default:
@@ -305,6 +414,7 @@ func handleRequest(conn net.Conn, queue *EffectQueue) {
 func main() {
 	portFlag := flag.Int("port", 3333, "Port of catlightd")
 	hostFlag := flag.String("host", "localhost", "Host of catlightd")
+	asyncFlag := flag.Bool("async", false, "Do not block when executing an effect")
 	flag.Parse()
 
 	queue, err := NewEffectQueue()
@@ -320,18 +430,20 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Close the listener when the application closes.
 	defer lsn.Close()
 	log.Println("Listening on " + addr)
 
 	for {
-		// Listen for an incoming connection.
 		conn, err := lsn.Accept()
 		if err != nil {
 			log.Fatalf("Error accepting: ", err.Error())
 			os.Exit(3)
 		}
 
-		handleRequest(conn, queue)
+		if *asyncFlag {
+			go handleRequest(conn, queue)
+		} else {
+			handleRequest(conn, queue)
+		}
 	}
 }
