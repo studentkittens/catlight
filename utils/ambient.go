@@ -14,7 +14,7 @@ func randColor() SimpleColor {
 	}
 }
 
-func main() {
+func Main() {
 	queue, err := CreateEffectQueue()
 	if err != nil {
 		fmt.Println(err)

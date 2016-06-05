@@ -138,7 +138,7 @@ func (effect *BlendEffect) ComposeEffect() chan SimpleColor {
 	c := make(chan SimpleColor, 1)
 	go func() {
 		// How much colors should be generated during the effect?
-		N := 100 * effect.Duration.Seconds()
+		N := 20 * effect.Duration.Seconds()
 
 		sr := float64(effect.StartColor.R)
 		sg := float64(effect.StartColor.G)

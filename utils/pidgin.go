@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/godbus/dbus"
 	"os"
-	"strings"
+	"time"
+
+	"github.com/godbus/dbus"
 )
 
 func ConnectPidginReceivedImMsgSignal() chan *dbus.Signal {
@@ -15,7 +16,12 @@ func ConnectPidginReceivedImMsgSignal() chan *dbus.Signal {
 		os.Exit(1)
 	}
 
-	call := conn.BusObject().Call("org.freedesktop.DBus.AddMatch", 0, "interface='im.pidgin.purple.PurpleInterface', path='/im/pidgin/purple/PurpleObject', type='signal', member='ReceivedImMsg'")
+	call := conn.BusObject().Call(
+		"org.freedesktop.DBus.AddMatch",
+		0,
+		"interface='im.pidgin.purple.PurpleInterface', path='/im/pidgin/purple/PurpleObject', type='signal', member='ReceivedImMsg'",
+	)
+
 	if call.Err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to add match:", call.Err)
 		os.Exit(1)
@@ -28,13 +34,23 @@ func ConnectPidginReceivedImMsgSignal() chan *dbus.Signal {
 
 func main() {
 	c := ConnectPidginReceivedImMsgSignal()
-	for v := range c {
-		name := fmt.Sprintf("%s", v.Body[1:2])
-		if strings.Contains(name, "christoph@jabber.nullcat.de") {
-			fmt.Println("kitteh")
-		} else {
-			fmt.Println("someone else.")
-		}
+	q, err := CreateEffectQueue()
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
+	for range c {
+		// name := fmt.Sprintf("%s", v.Body[1:2])
+		q.Push(&BlendEffect{
+			SimpleColor{255, 0, 0},
+			SimpleColor{0, 0, 255},
+			time.Millisecond * 5000,
+		})
+		q.Push(&BlendEffect{
+			SimpleColor{0, 0, 255},
+			SimpleColor{0, 0, 0},
+			time.Millisecond * 2000,
+		})
+	}
 }

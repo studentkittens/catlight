@@ -44,6 +44,8 @@ all: $(PROGRAM)
 
 $(PROGRAM): $(OBJECTS)
 	$(CC) -o $(PROGRAM) *.o $(LIBS)
+	cd catlightd && go build catlightd.go
+	cd catlightctl && go build catlightctl.go
 
 strip: $(PROGRAM)
 	strip -s $(PROGRAM)
@@ -54,3 +56,5 @@ clean:
 install:
 	chmod u+s $(PROGRAM)
 	cp $(PROGRAM) /usr/bin/
+	cp catlightd/catlightd /usr/bin
+	cp catlightctl/catlightctl /usr/bin
