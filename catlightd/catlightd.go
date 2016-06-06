@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/rand"
 	"net"
 	"os"
 	"os/exec"
@@ -14,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 type EffectQueue struct {
@@ -199,6 +202,35 @@ func readMoodbarFile(path string) ([]*SimpleColor, error) {
 	return results, nil
 }
 
+type FireEffect struct {
+	Properties
+}
+
+func (effect *FireEffect) ComposeEffect() chan SimpleColor {
+	fn := func(t, n, jitter int, fac float64) uint8 {
+		j := float64(rand.Int()%(jitter<<1) - jitter)
+		f := float64(t - n>>1)
+		fmt.Println(j, f)
+		return uint8(fac * (float64(-255.0/262144.0)*f*f + 255 + j))
+	}
+
+	c := make(chan SimpleColor, 1)
+	go func() {
+		defer close(c)
+
+		for t := 0; t < effect.Repeat; t++ {
+			c <- SimpleColor{
+				fn(t, effect.Repeat, 50, 1.00),
+				fn(t, effect.Repeat, 70, 0.10),
+				fn(t, effect.Repeat, 80, 0.01),
+			}
+			time.Sleep(effect.Delay)
+		}
+	}()
+
+	return c
+}
+
 type MoodbarEffect struct {
 	// Path to .mood file
 	Path string
@@ -211,10 +243,10 @@ type MoodbarEffect struct {
 }
 
 func (effect *MoodbarEffect) ComposeEffect() chan SimpleColor {
-	c := make(chan SimpleColor, 1)
+	chn := make(chan SimpleColor, 1)
 
 	go func() {
-		defer close(c)
+		defer close(chn)
 
 		data, err := readMoodbarFile(effect.Path)
 		if err != nil {
@@ -227,28 +259,46 @@ func (effect *MoodbarEffect) ComposeEffect() chan SimpleColor {
 		for idx := range data {
 			curr := data[idx]
 			if idx+1 >= len(data) {
-				c <- *curr
+				chn <- *curr
 				break
 			}
 
 			next := data[idx+1]
 
-			// Add a slight fade:
+			c1 := colorful.Color{
+				float64(curr.R) / 255.,
+				float64(curr.G) / 255.,
+				float64(curr.B) / 255.,
+			}
+
+			c2 := colorful.Color{
+				float64(next.R) / 255.,
+				float64(next.G) / 255.,
+				float64(next.B) / 255.,
+			}
 
 			N := 10
 			for i := 0; i < N; i++ {
-				c <- SimpleColor{
-					uint8((int(curr.R)*(N-i) + int(next.R)*i) / N),
-					uint8((int(curr.G)*(N-i) + int(next.G)*i) / N),
-					uint8((int(curr.B)*(N-i) + int(next.B)*i) / N),
+				mix := c1.BlendHcl(c2, float64(i)/float64(N)).Clamped()
+				h, c, l := mix.Hcl()
+				c += 0.1 // Increase chroma bit.
+				l -= 0.1 // Decrease luminance slightly.
+
+				// Go back to rgb for catlight:
+				r, g, b := colorful.Hcl(h, c, l).FastLinearRgb()
+
+				chn <- SimpleColor{
+					uint8(255 * r),
+					uint8(255 * g),
+					uint8(255 * b),
 				}
 
-				time.Sleep(effect.Delay / 10)
+				time.Sleep(effect.Delay / time.Duration(N))
 			}
 		}
 	}()
 
-	return c
+	return chn
 }
 
 ////////////// EFFECT SPEC PARSING //////////////////
@@ -372,6 +422,15 @@ func parseFlashEffect(s string) (*FlashEffect, error) {
 	return &FlashEffect{*props}, nil
 }
 
+func parseFireEffect(s string) (*FireEffect, error) {
+	props, err := parseProperties(strings.TrimPrefix(s, "fire"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &FireEffect{*props}, nil
+}
+
 func parseEffect(s string) (Effect, error) {
 	sepIdx := strings.Index(s, "{")
 	name, rest := s[:sepIdx], s[sepIdx:]
@@ -383,6 +442,8 @@ func parseEffect(s string) (Effect, error) {
 		return parseFadeEffect(rest)
 	case "flash":
 		return parseFlashEffect(rest)
+	case "fire":
+		return parseFireEffect(rest)
 	case "moodbar":
 		return parseMoodbarEffect(rest)
 	case "blend":
