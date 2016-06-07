@@ -15,8 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/lucasb-eyer/go-colorful"
 )
 
 type EffectQueue struct {
@@ -171,37 +169,6 @@ func (effect *BlendEffect) ComposeEffect() chan SimpleColor {
 	return c
 }
 
-func readMoodbarFile(path string) ([]*SimpleColor, error) {
-	results := []*SimpleColor{}
-
-	fd, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	defer fd.Close()
-
-	rgb := make([]byte, 3)
-	for {
-		_, err := fd.Read(rgb)
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-
-		results = append(results, &SimpleColor{
-			uint8(rgb[0]),
-			uint8(rgb[1]),
-			uint8(rgb[2]),
-		})
-
-		if err == io.EOF {
-			break
-		}
-	}
-
-	return results, nil
-}
-
 type FireEffect struct {
 	Properties
 }
@@ -229,76 +196,6 @@ func (effect *FireEffect) ComposeEffect() chan SimpleColor {
 	}()
 
 	return c
-}
-
-type MoodbarEffect struct {
-	// Path to .mood file
-	Path string
-
-	// Delay in between mood steps.
-	Delay time.Duration
-
-	// SeekPos determines where to start in the moodbar.
-	SeekPos int
-}
-
-func (effect *MoodbarEffect) ComposeEffect() chan SimpleColor {
-	chn := make(chan SimpleColor, 1)
-
-	go func() {
-		defer close(chn)
-
-		data, err := readMoodbarFile(effect.Path)
-		if err != nil {
-			log.Printf("Failed to read mood file (%s): %v", effect.Path, err)
-			return
-		}
-
-		data = data[effect.SeekPos:]
-
-		for idx := range data {
-			curr := data[idx]
-			if idx+1 >= len(data) {
-				chn <- *curr
-				break
-			}
-
-			next := data[idx+1]
-
-			c1 := colorful.Color{
-				float64(curr.R) / 255.,
-				float64(curr.G) / 255.,
-				float64(curr.B) / 255.,
-			}
-
-			c2 := colorful.Color{
-				float64(next.R) / 255.,
-				float64(next.G) / 255.,
-				float64(next.B) / 255.,
-			}
-
-			N := 10
-			for i := 0; i < N; i++ {
-				mix := c1.BlendHcl(c2, float64(i)/float64(N)).Clamped()
-				h, c, l := mix.Hcl()
-				c += 0.1 // Increase chroma bit.
-				l -= 0.1 // Decrease luminance slightly.
-
-				// Go back to rgb for catlight:
-				r, g, b := colorful.Hcl(h, c, l).FastLinearRgb()
-
-				chn <- SimpleColor{
-					uint8(255 * r),
-					uint8(255 * g),
-					uint8(255 * b),
-				}
-
-				time.Sleep(effect.Delay / time.Duration(N))
-			}
-		}
-	}()
-
-	return chn
 }
 
 ////////////// EFFECT SPEC PARSING //////////////////
@@ -354,28 +251,6 @@ func parseBlendEffect(s string) (*BlendEffect, error) {
 	}
 
 	return &BlendEffect{*srcColor, *dstColor, duration}, nil
-}
-
-func parseMoodbarEffect(s string) (*MoodbarEffect, error) {
-	// Same regex as for properties (by chance)
-	matches := REGEX_PROPERTIES.FindStringSubmatch(s)
-	if matches == nil {
-		return nil, fmt.Errorf("Bad blend effect: %s", s)
-	}
-
-	path := matches[1]
-
-	duration, err := time.ParseDuration(matches[2])
-	if err != nil {
-		return nil, fmt.Errorf("Bad duration: `%s`: %v", matches[2], err)
-	}
-
-	seekPos, err := strconv.Atoi(matches[3])
-	if err != nil {
-		return nil, fmt.Errorf("Bad seek pos: %v", err)
-	}
-
-	return &MoodbarEffect{path, duration, seekPos}, nil
 }
 
 func parseProperties(s string) (*Properties, error) {
@@ -444,8 +319,6 @@ func parseEffect(s string) (Effect, error) {
 		return parseFlashEffect(rest)
 	case "fire":
 		return parseFireEffect(rest)
-	case "moodbar":
-		return parseMoodbarEffect(rest)
 	case "blend":
 		return parseBlendEffect(rest)
 	default:
